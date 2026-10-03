@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Nộp Bài Tập Lớp Học</title>
+    <!-- Thư viện Firebase Realtime Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --admin-color: #dc2626;
+            --admin-hover: #b91c1c;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #cbd5e1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        header h1 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: #64748b;
+            font-size: 1rem;
+        }
+
+        /* Nút mở bảng Admin cho quản lý */
+        .admin-login-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: #e2e8f0;
+            border: none;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .admin-login-btn:hover {
+            background: #cbd5e1;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            height: fit-content;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #0f172a;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"], select, input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        input[type="file"] {
+            background: #f1f5f9;
+            cursor: pointer;
+        }
+
+        .submit-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .submit-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .filter-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .filter-container select {
+            flex: 1;
+            padding: 8px;
+        }
+
+        .homework-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+            max-height: 550px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .homework-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .homework-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+        }
+
+        .homework-info {
+            padding: 10px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .homework-info h4 {
+            font-size: 0.95rem;
+            color: #1e293b;
+            margin-bottom: 2px;
+        }
+
+        .homework-info p {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 2px;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 5px;
+            font-size: 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+        }
+
+        /* Bảng điều khiển dành riêng cho Quản lý (Admin Panel) */
+        #adminPanel {
+            display: none;
+            background: #fff5f5;
+            border: 2px dashed var(--admin-color);
+            margin-bottom: 25px;
+        }
+
+        .admin-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .danger-btn {
+            background: var(--admin-color);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .danger-btn:hover {
+            background: var(--admin-hover);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <button class="admin-login-btn" onclick="toggleAdminMode()">🔑 Đăng Nhập Quản Lý</button>
+            <h1>Nộp Bài Tập Lớp Học</h1>
+            <p>Hệ thống nộp bài trực tuyến của cả lớp</p>
+        </header>
+
+        <!-- BẢNG ĐIỀU KHIỂN DÀNH CHO QUẢN LÝ (ẨN ĐI, KHI NÀO CẦN MỚI HIỆN) -->
+        <div id="adminPanel" class="card">
+            <h2>
+                <span>🛡️ Bảng Quản Lý Dành Cho Bạn</span>
+                <span id="adminStatus" style="font-size: 0.85rem; color: var(--admin-color);">Đang bật quyền quản trị</span>
+            </h2>
+            <p style="font-size: 0.9rem; color: #475569; margin-bottom: 12px;">Bạn có quyền xóa bất kỳ bài tập nào mà không cần hỏi tên, hoặc dọn sạch danh sách lớp.</p>
+            <div class="admin-controls">
+                <button class="danger-btn" onclick="deleteAllHomeworks()">🗑️ Xóa Tất Cả Bài Của Cả Lớp</button>
+                <button class="submit-btn" style="width: auto; padding: 8px 16px;" onclick="toggleAdminMode()">🔒 Thoát Chế Độ Quản Lý</button>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- Form nộp bài cho học sinh -->
+            <div class="card">
+                <h2>Gửi Bài Làm Mới</h2>
+                <div class="form-group">
+                    <label for="studentName">Họ và tên học sinh:</label>
+                    <input type="text" id="studentName" placeholder="Nhập đúng họ tên của bạn...">
+                </div>
+
+                <div class="form-group">
+                    <label for="subjectSelect">Môn học:</label>
+                    <select id="subjectSelect">
+                        <option value="Toán">Toán</option>
+                        <option value="Hóa Học">Hóa Học</option>
+                        <option value="Sinh Học">Sinh Học</option>
+                        <option value="Tiếng Anh">Tiếng Anh</option>
+                        <option value="Môn Khác">Môn Khác</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="homeworkFile">Chọn hình ảnh bài tập:</label>
+                    <input type="file" id="homeworkFile" accept="image/*">
+                </div>
+
+                <button class="submit-btn" onclick="submitHomework()">Nộp Bài Ngay</button>
+            </div>
+
+            <!-- Danh sách bài đã nộp -->
+            <div class="card">
+                <h2>Danh Sách Bài Đã Nộp</h2>
+                
+                <div class="filter-container">
+                    <label for="filterSubject" style="margin: 0; font-size: 0.9rem;">Lọc:</label>
+                    <select id="filterSubject" onchange="renderHomeworks()">
+                        <option value="Tất cả">Tất cả môn học</option>
+                        <option value="Toán">Toán</option>
+                        <option value="Hóa Học">Hóa Học</option>
+                        <option value="Sinh Học">Sinh Học</option>
+                        <option value="Tiếng Anh">Tiếng Anh</option>
+                        <option value="Môn Khác">Môn Khác</option>
+                    </select>
+                </div>
+
+                <div class="homework-grid" id="homeworkGrid">
+                    <p style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 20px;">Đang tải dữ liệu...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal xem ảnh lớn -->
+    <div id="imageModal" class="modal" onclick="closeModal()">
+        <span class="modal-close">&times;</span>
+        <img id="modalImg" src="" alt="Phóng to bài tập">
+    </div>
+
+    <script>
+        // --- CẤU HÌNH FIREBASE CỦA BẠN ---
+        const firebaseConfig = {
+            apiKey: "DÁN_API_KEY_CỦA_BẠN_VÀO_ĐÂY",
+            authDomain: "DÁN_AUTH_DOMAIN_CỦA_BẠN_VÀO_ĐÂY",
+            databaseURL: "DÁN_DATABASE_URL_CỦA_BẠN_VÀO_ĐÂY",
+            projectId: "DÁN_PROJECT_ID_CỦA_BẠN_VÀO_ĐÂY",
+            storageBucket: "DÁN_STORAGE_BUCKET_CỦA_BẠN_VÀO_ĐÂY",
+            messagingSenderId: "DÁN_MESSAGING_SENDER_ID_CỦA_BẠN_VÀO_ĐÂY",
+            appId: "DÁN_APP_ID_CỦA_BẠN_VÀO_ĐÂY"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let allHomeworks = [];
+        let isAdmin = false; // Trạng thái quản lý (mặc định là false)
+
+        // Mật khẩu quản lý của riêng bạn (Bạn có thể đổi chữ "123456" thành mật khẩu tùy ý)
+        const ADMIN_PASSWORD = "123456"; 
+
+        // Lắng nghe dữ liệu realtime từ Firebase
+        db.ref('homeworks').on('value', (snapshot) => {
+            const data = snapshot.val();
+            allHomeworks = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    allHomeworks.push({
+                        id: key,
+                        ...data[key]
+                    });
+                });
+                allHomeworks.sort((a, b) => b.timestamp - a.timestamp);
+            }
+            renderHomeworks();
+        });
+
+        // Nộp bài tập
+        function submitHomework() {
+            const name = document.getElementById('studentName').value.trim();
+            const subject = document.getElementById('subjectSelect').value;
+            const fileInput = document.getElementById('homeworkFile');
+
+            if (!name) {
+                alert('Vui lòng nhập họ và tên của bạn!');
+                return;
+            }
+
+            if (fileInput.files.length === 0) {
+                alert('Vui lòng chọn hình ảnh bài tập!');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const imageDataUrl = e.target.result;
+                
+                const newHomework = {
+                    name: name,
+                    subject: subject,
+                    image: imageDataUrl,
+                    time: new Date().toLocaleString('vi-VN'),
+                    timestamp: Date.now()
+                };
+
+                db.ref('homeworks').push(newHomework)
+                    .then(() => {
+                        alert('Nộp bài thành công!');
+                        document.getElementById('homeworkFile').value = '';
+                    })
+                    .catch((error) => {
+                        alert('Lỗi: ' + error.message);
+                    });
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        // Hiển thị danh sách bài tập
+        function renderHomeworks() {
+            const filter = document.getElementById('filterSubject').value;
+            const grid = document.getElementById('homeworkGrid');
+
+            grid.innerHTML = '';
+
+            const filteredList = filter === 'Tất cả' 
+                ? allHomeworks 
+                : allHomeworks.filter(hw => hw.subject === filter);
+
+            if (filteredList.length === 0) {
+                grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 20px;">Chưa có bài tập nào được nộp.</p>`;
+                return;
+            }
+
+            filteredList.forEach(hw => {
+                // Nếu là Admin, nút xóa hiện chữ màu đỏ và bấm phát ăn ngay không cần hỏi tên
+                // Nếu là học sinh bình thường, bấm xóa phải nhập đúng tên tác giả
+                const deleteAction = isAdmin 
+                    ? `adminDeleteHomework('${hw.id}')` 
+                    : `studentDeleteHomework('${hw.id}', '${hw.name}')`;
+
+                const deleteBtnText = isAdmin ? '🗑️ Xóa (Quyền Quản Lý)' : 'Xóa bài';
+                const deleteBtnStyle = isAdmin ? 'background: #dc2626;' : '';
+
+                const card = `
+                    <div class="homework-card">
+                        <img src="${hw.image}" alt="Bài của ${hw.name}" onclick="openModal('${hw.image}')" title="Nhấn để phóng to ảnh">
+                        <div class="homework-info">
+                            <div>
+                                <h4>${hw.name}</h4>
+                                <p><b>Môn:</b> ${hw.subject}</p>
+                                <p><b>Lúc:</b> ${hw.time}</p>
+                            </div>
+                            <button class="delete-btn" style="${deleteBtnStyle}" onclick="${deleteAction}">${deleteBtnText}</button>
+                        </div>
+                    </div>
+                `;
+                grid.innerHTML += card;
+            });
+        }
+
+        // Bật/tắt chế độ quản lý bằng mật khẩu
+        function toggleAdminMode() {
+            if (!isAdmin) {
+                const pass = prompt("Nhập mật khẩu quản lý của bạn:");
+                if (pass === ADMIN_PASSWORD) {
+                    isAdmin = true;
+                    document.getElementById('adminPanel').style.display = 'block';
+                    alert('Đã bật quyền quản lý thành công!');
+                    renderHomeworks();
+                } else if (pass !== null) {
+                    alert('Sai mật khẩu!');
+                }
+            } else {
+                isAdmin = false;
+                document.getElementById('adminPanel').style.display = 'none';
+                alert('Đã thoát chế độ quản lý.');
+                renderHomeworks();
+            }
+        }
+
+        // Quyền xóa của Quản lý (Xóa luôn không cần hỏi)
+        function adminDeleteHomework(id) {
+            if (confirm('Bạn có chắc chắn muốn xóa bài tập này với tư cách là người quản lý?')) {
+                db.ref('homeworks/' + id).remove()
+                    .then(() => {
+                        alert('Đã xóa thành công!');
+                    });
+            }
+        }
+
+        // Quyền xóa của học sinh (Phải nhập đúng tên)
+        function studentDeleteHomework(id, authorName) {
+            const inputName = prompt(`Đây là bài của bạn "${authorName}". Nhập lại chính xác họ tên của bạn để xác nhận xóa bài:`);
+            if (inputName === null) return;
+
+            if (inputName.trim().toLowerCase() === authorName.trim().toLowerCase()) {
+                db.ref('homeworks/' + id).remove()
+                    .then(() => {
+                        alert('Đã xóa bài thành công!');
+                    });
+            } else {
+                alert('Tên không khớp! Bạn không có quyền xóa bài này.');
+            }
+        }
+
+        // Xóa toàn bộ bài tập trên hệ thống (Dành riêng cho Quản lý)
+        function deleteAllHomeworks() {
+            if (confirm('⚠️ CẢNH BÁO: Bạn có chắc chắn muốn XÓA TẤT CẢ bài tập của cả lớp không? Hành động này không thể hoàn tác!')) {
+                db.ref('homeworks').remove()
+                    .then(() => {
+                        alert('Đã dọn sạch tất cả bài tập!');
+                    });
+            }
+        }
+
+        // Phóng to ảnh
+        function openModal(imgSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImg');
+            modal.style.display = 'flex';
+            modalImg.src = imgSrc;
+        }
+
+        function closeModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
